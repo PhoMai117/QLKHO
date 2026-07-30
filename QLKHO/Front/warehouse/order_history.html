@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lịch Sử & Quản Lý Đơn Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <!-- HEADER -->
+        <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-md border border-slate-200">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">📋 LỊCH SỬ & QUẢN LÝ ĐƠN HÀNG</h1>
+                <p class="text-sm text-slate-500">Theo dõi toàn bộ trạng thái đơn hàng trong hệ thống kho</p>
+            </div>
+            <div class="space-x-2">
+                <button onclick="window.location.href='create_order.html'" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded shadow transition">➕ Tạo Đơn Mới</button>
+                <button onclick="window.location.href='../warehouse.html'" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded transition">🏠 Về Menu</button>
+            </div>
+        </div>
+
+        <!-- BẢNG DANH SÁCH ĐƠN HÀNG -->
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="font-bold text-lg text-slate-800 border-l-4 border-blue-500 pl-2">Danh Sách Tất Cả Đơn Hàng</h2>
+                <div class="flex gap-2">
+                    <select id="filterStatus" onchange="locDonHang()" class="border border-slate-300 rounded px-3 py-1.5 text-sm outline-none bg-slate-50 font-semibold">
+                        <option value="ALL">-- Tất cả trạng thái --</option>
+                        <option value="Chờ xuất kho">Chờ xuất kho</option>
+                        <option value="Đã giao">Đã giao</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 border-b text-sm text-slate-700">
+                            <th class="p-3">Mã ĐH</th>
+                            <th class="p-3">Đối Tác</th>
+                            <th class="p-3">Người Tạo</th>
+                            <th class="p-3">Ngày Lên Đơn</th>
+                            <th class="p-3">Ngày Giao Hẹn</th>
+                            <th class="p-3 text-center">Trạng Thái</th>
+                            <th class="p-3 text-center">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody">
+                        <tr><td colspan="7" class="p-4 text-center italic text-slate-500">Đang tải dữ liệu...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL XEM CHI TIẾT ĐƠN HÀNG -->
+    <div id="detailModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-2xl p-6 rounded-xl shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-bold text-lg text-slate-800">Chi Tiết Đơn Hàng: <span id="modalMaDH" class="text-blue-600 font-mono"></span></h3>
+                <button onclick="dongModal()" class="text-slate-400 hover:text-slate-700 font-bold text-xl">✕</button>
+            </div>
+            
+            <div class="overflow-y-auto max-h-96">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b">
+                            <th class="p-2">Số PO (Detail_ID)</th>
+                            <th class="p-2">Sản Phẩm (MSP)</th>
+                            <th class="p-2 text-right">Số Lượng (Pcs)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="modalDetailsBody">
+                        <!-- Render JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-end pt-3 border-t">
+                <button onclick="dongModal()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-sm">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allOrdersData = [];
+
+        document.addEventListener('DOMContentLoaded', loadOrdersHistory);
+
+        async function loadOrdersHistory() {
+            try {
+                const res = await fetch('http://localhost:5000/api/warehouse/get-all-orders');
+                const data = await res.json();
+                
+                if (data.success) {
+                    allOrdersData = data.orders;
+                    hienThiBang(allOrdersData);
+                }
+            } catch (err) {
+                console.error("Lỗi tải lịch sử đơn:", err);
+            }
+        }
+
+        function hienThiBang(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            if (orders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-slate-500">Không có đơn hàng nào!</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = orders.map(o => {
+                let badgeClass = o.Trang_thai_DH === 'Chờ xuất kho' 
+                    ? 'bg-amber-100 text-amber-800 border border-amber-300' 
+                    : 'bg-green-100 text-green-800 border border-green-300';
+
+                return `
+                    <tr class="border-b hover:bg-slate-50 transition text-sm">
+                        <td class="p-3 font-bold font-mono text-blue-700">${o.Ma_DH}</td>
+                        <td class="p-3 font-semibold text-slate-700">${o.Ten_KH}</td>
+                        <td class="p-3 text-slate-600">${o.User_ID}</td>
+                        <td class="p-3 text-slate-600">${o.Ngay_tao ? o.Ngay_tao.split(' ')[0] : ''}</td>
+                        <td class="p-3 font-bold text-amber-600">${o.Ngay_giao || ''}</td>
+                        <td class="p-3 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${badgeClass}">${o.Trang_thai_DH}</span>
+                        </td>
+                        <td class="p-3 text-center space-x-1">
+                            <button onclick="xemChiTiet('${o.Ma_DH}')" class="px-2.5 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded text-xs">🔍 Xem</button>
+                            ${o.Trang_thai_DH === 'Chờ xuất kho' ? `
+                                <button onclick="suaDon('${o.Ma_DH}')" class="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded text-xs">✏️ Sửa</button>
+                                <button onclick="xoaDon('${o.Ma_DH}')" class="px-2.5 py-1 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded text-xs">🗑️ Xóa</button>
+                            ` : ''}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function locDonHang() {
+            const status = document.getElementById('filterStatus').value;
+            if (status === 'ALL') {
+                hienThiBang(allOrdersData);
+            } else {
+                const filtered = allOrdersData.filter(o => o.Trang_thai_DH === status);
+                hienThiBang(filtered);
+            }
+        }
+
+        async function xemChiTiet(ma_dh) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/warehouse/get-order/${ma_dh}`);
+                const data = await res.json();
+                
+                if (data.success) {
+                    document.getElementById('modalMaDH').innerText = ma_dh;
+                    const tbody = document.getElementById('modalDetailsBody');
+                    
+                    tbody.innerHTML = data.details.map(d => `
+                        <tr class="border-b">
+                            <td class="p-2 font-mono font-bold">${d.Detail_ID}</td>
+                            <td class="p-2">${d.MSP}</td>
+                            <td class="p-2 text-right font-bold text-blue-600">${d.So_luong} Pcs</td>
+                        </tr>
+                    `).join('');
+
+                    document.getElementById('detailModal').classList.remove('hidden');
+                }
+            } catch (err) {
+                alert("Lỗi tải chi tiết đơn hàng!");
+            }
+        }
+
+        function dongModal() {
+            document.getElementById('detailModal').classList.add('hidden');
+        }
+
+        function suaDon(ma_dh) {
+            // Chuyển hướng sang trang tạo đơn kèm theo mã để tự load lên sửa
+            window.location.href = `create_order.html?dh=${ma_dh}`;
+        }
+        async function xoaDon(ma_dh) {
+            if (!confirm(`⚠️ Bạn có chắc chắn muốn XÓA đơn hàng "${ma_dh}" không?\n- Các thùng hàng đã lỡ quét (nếu có) sẽ được đưa về trạng thái Tồn kho.\n- Hành động này không thể hoàn tác!`)) return;
+
+            try {
+                const res = await fetch(`http://localhost:5000/api/warehouse/delete-order/${ma_dh}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert("✔️ " + data.message);
+                    loadOrdersHistory(); // Tải lại bảng danh sách
+                } else {
+                    alert("❌ Lỗi: " + data.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("❌ Lỗi kết nối tới Server Backend!");
+            }
+        }
+    </script>
+</body>
+</html>

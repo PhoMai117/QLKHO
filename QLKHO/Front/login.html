@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - Hệ thống Quản lý Kho</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md border border-slate-200">
+        <div class="text-center mb-6">
+            <div class="inline-flex p-3 bg-blue-100 text-blue-600 rounded-full mb-3">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800">HỆ THỐNG QUẢN LÝ KHO</h2>
+            <p class="text-slate-500 text-sm mt-1">Đăng nhập tài khoản để làm việc</p>
+        </div>
+
+        <div id="alertBox" class="hidden mb-4 p-3 rounded-lg text-sm text-center"></div>
+
+        <form id="loginForm" onsubmit="xuLyDangNhap(event)" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Mã Nhân Viên</label>
+                <input type="text" id="user_id" required placeholder="Ví dụ: NTV-0001"
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none uppercase">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1">Mật Khẩu</label>
+                <input type="password" id="password" required placeholder="••••••••"
+                    class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+
+            <button type="submit" id="btnLogin"
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded-lg transition duration-200 flex items-center justify-center">
+                <span>Đăng nhập</span>
+            </button>
+        </form>
+
+        <div class="mt-6 text-center text-xs text-slate-400">
+            Hệ thống Quản lý Chuỗi cung ứng Nội bộ v2.0
+        </div>
+    </div>
+
+    <script>
+        async function xuLyDangNhap(event) {
+            event.preventDefault();
+
+            const userIdInput = document.getElementById('user_id').value.trim();
+            const passwordInput = document.getElementById('password').value.trim();
+            const alertBox = document.getElementById('alertBox');
+            const btnLogin = document.getElementById('btnLogin');
+
+            // Reset thông báo
+            alertBox.classList.add('hidden');
+            btnLogin.disabled = true;
+            btnLogin.innerHTML = `<span>Đang xử lý...</span>`;
+
+            try {
+                // Gọi API sang Backend (Cổng 5000)
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userIdInput,
+                        password: passwordInput
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Hiện thông báo thành công
+                    alertBox.className = "mb-4 p-3 rounded-lg text-sm text-center bg-green-100 text-green-700";
+                    alertBox.innerText = `${data.message} Xin chào ${data.user.ho_ten}`;
+                    alertBox.classList.remove('hidden');
+
+                    // Lưu thông tin người dùng vào localStorage
+                    localStorage.setItem('currentUser', JSON.stringify(data.user));
+
+                    // Chuyển hướng sau 1 giây
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 1000);
+                } else {
+                    // Hiện thông báo lỗi
+                    alertBox.className = "mb-4 p-3 rounded-lg text-sm text-center bg-red-100 text-red-700";
+                    alertBox.innerText = data.message;
+                    alertBox.classList.remove('hidden');
+                    btnLogin.disabled = false;
+                    btnLogin.innerHTML = `<span>Đăng nhập</span>`;
+                }
+            } catch (error) {
+                alertBox.className = "mb-4 p-3 rounded-lg text-sm text-center bg-red-100 text-red-700";
+                alertBox.innerText = "Không thể kết nối tới Server Backend (Cổng 5000)!";
+                alertBox.classList.remove('hidden');
+                btnLogin.disabled = false;
+                btnLogin.innerHTML = `<span>Đăng nhập</span>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Bộ Phận Kho</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8 border-b pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">TỔNG QUAN BỘ PHẬN KHO</h1>
+                <p class="text-slate-500 mt-1" id="userInfo">Đang tải...</p>
+            </div>
+            <button onclick="dangXuat()" class="px-5 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-medium transition">
+                Đăng xuất
+            </button>
+        </div>
+        <!-- Menu Trạm Kho -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <a href="warehouse/pack_box.html" 
+               class="group block p-6 bg-amber-50 border-2 border-amber-200 rounded-xl hover:bg-amber-600 hover:border-amber-600 transition duration-300">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 bg-amber-200 text-amber-700 rounded-lg group-hover:bg-amber-500 group-hover:text-white transition">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-amber-900 group-hover:text-white transition">TRẠM QUÉT ĐÓNG THÙNG</h2>
+                        <p class="text-sm text-amber-600 group-hover:text-amber-100 mt-1">Quét túi đạt chuẩn, gom thùng & in tem thùng</p>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <!-- NÚT CHỨC NĂNG: TẠO ĐƠN HÀNG MỚI -->
+            <div onclick="window.location.href='warehouse/create_order.html'" 
+                 class="bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer hover:shadow-lg hover:border-blue-400 hover:-translate-y-1 transition-all duration-200 group flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                    📝
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Tạo Đơn Hàng (PO)</h3>
+                <p class="text-sm text-slate-500">Lập phiếu yêu cầu xuất kho, nhập các dòng PO và chọn ngày giao hàng.</p>
+            </div>
+        
+        <div onclick="window.location.href='warehouse/export_order.html'" 
+            class="bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer hover:shadow-lg hover:border-green-400 hover:-translate-y-1 transition-all duration-200 group flex flex-col items-center text-center">
+            <div class="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                    🔫
+            </div>
+              <h3 class="text-lg font-bold text-slate-800 mb-2">Trạm Quét Xuất Kho</h3>
+             <p class="text-sm text-slate-500">Quét mã vạch thùng để xuất hàng đi theo Đơn Hàng (PO).</p>
+         </div> 
+        <!-- NÚT CHỨC NĂNG: LỊCH SỬ ĐƠN HÀNG -->
+            <div onclick="window.location.href='warehouse/order_history.html'" 
+                 class="bg-white p-6 rounded-xl shadow-md border border-slate-200 cursor-pointer hover:shadow-lg hover:border-purple-400 hover:-translate-y-1 transition-all duration-200 group flex flex-col items-center text-center">
+                <div class="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-3xl mb-4 group-hover:scale-110 transition-transform">
+                    📋
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-2">Lịch Sử Đơn Hàng</h3>
+                <p class="text-sm text-slate-500">Xem danh sách, kiểm tra tiến độ và trạng thái các đơn hàng trong kho.</p>
+            </div>    
+    </div>
+
+    <script>
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || currentUser.bo_phan !== 'Kho') {
+            alert("Bạn không có quyền truy cập trang này!");
+            window.location.href = 'login.html';
+        } else {
+            document.getElementById('userInfo').innerHTML = `
+                Xin chào, <span class="font-bold text-amber-600">${currentUser.ho_ten}</span> 
+                | Chức vụ: <span class="font-bold">${currentUser.chuc_vu}</span>
+            `;
+        }
+
+        function dangXuat() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

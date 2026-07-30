@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trạm In Tem Túi - Sản Xuất</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-2xl mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200">
+        
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">TRẠM IN TEM TÚI SẢN XUẤT</h1>
+                <p class="text-sm text-slate-500 mt-1" id="userInfo">Đang tải thông tin...</p>
+            </div>
+            <button onclick="quayLai()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-medium transition">
+                Quay lại Menu
+            </button>
+        </div>
+
+        <div id="alertBox" class="hidden mb-4 p-3 rounded-lg text-sm text-center font-medium"></div>
+
+        <form id="printForm" onsubmit="taoTemTui(event)" class="space-y-4">
+            
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Chọn Sản Phẩm (MSP):</label>
+                <select id="selectMSP" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none">
+                    <option value="">-- Đang tải danh sách sản phẩm --</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Ngày Sản Xuất (NSX):</label>
+                <input type="date" id="inputNSX" required 
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Số Lot sản xuất:</label>
+                <div class="flex rounded-lg shadow-sm border border-slate-300 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-400 overflow-hidden">
+                    <span class="bg-slate-200 text-slate-700 px-3 py-2 flex items-center font-bold font-mono select-none border-r border-slate-300">LOT-</span>
+                    <input type="text" id="inputLotNum" required placeholder="260729" 
+                        class="w-full px-3 py-2 focus:outline-none font-mono"
+                        inputmode="numeric"
+                        oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                </div>
+                <p class="text-xs text-slate-400 mt-1">Hệ thống cố định tiền tố LOT-, tự động gợi ý theo ngày hiện tại, chỉ nhập dãy số phía sau.</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-bold text-slate-700 mb-1">Số Lượng Tem Cần In (Số túi):</label>
+                <input type="number" id="inputSoLuong" min="1" max="100" value="12" required 
+                    class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none">
+                <p class="text-xs text-slate-400 mt-1">Hệ thống sẽ sinh mã định danh B-YYMMDDNOO độc lập cho từng tem.</p>
+            </div>
+
+            <button type="submit" id="btnPrint" 
+                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-lg transition duration-200 shadow-md flex justify-center items-center">
+                Khởi tạo & Ghi nhận Tem Túi
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // 1. Kiểm tra phân quyền đăng nhập
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || currentUser.bo_phan !== 'Sản Xuất') {
+            alert("Bạn không có quyền truy cập trang này!");
+            window.location.href = '../login.html';
+        } else {
+            document.getElementById('userInfo').innerText = `Nhân viên: ${currentUser.ho_ten} (${currentUser.chuc_vu})`;
+        }
+
+        function quayLai() {
+            window.location.href = '../production.html';
+        }
+
+        // 2. Tự động điền ngày hiện tại và số Lot mặc định khi mở trang
+        document.addEventListener("DOMContentLoaded", () => {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const dd = String(today.getDate()).padStart(2, '0');
+            
+            // Set NSX
+            document.getElementById('inputNSX').value = `${yyyy}-${mm}-${dd}`;
+
+            // Set Lot mặc định (YYMMDD)
+            const yy = String(yyyy).slice(-2);
+            const defaultLotNum = yy + mm + dd;
+            document.getElementById('inputLotNum').value = defaultLotNum;
+
+            // Tải danh sách sản phẩm từ backend
+            loadProducts();
+        });
+
+        // 3. Hàm tải sản phẩm đã sửa đúng URL (/get-products) và cấu trúc JSON (data.products)
+        async function loadProducts() {
+            const selectMSP = document.getElementById('selectMSP');
+            try {
+                const res = await fetch('http://localhost:5000/api/production/get-products');
+                const data = await res.json();
+                
+                if (data.success && Array.isArray(data.products)) {
+                    selectMSP.innerHTML = '<option value="">-- Chọn sản phẩm --</option>';
+                    data.products.forEach(p => {
+                        const opt = document.createElement('option');
+                        opt.value = p.MSP;
+                        opt.textContent = `${p.MSP} - ${p.Ten_SP} (${p.Quy_cach_Tui} pcs/túi)`;
+                        selectMSP.appendChild(opt);
+                    });
+                } else {
+                    selectMSP.innerHTML = '<option value="">Không lấy được dữ liệu sản phẩm!</option>';
+                }
+            } catch (err) {
+                console.error("Lỗi khi tải sản phẩm:", err);
+                selectMSP.innerHTML = '<option value="">Không thể tải danh sách sản phẩm!</option>';
+            }
+        }
+
+        // 4. Xử lý sự kiện Submit tạo tem và tải file Excel
+        async function taoTemTui(event) {
+            event.preventDefault();
+            const alertBox = document.getElementById('alertBox');
+            const btnPrint = document.getElementById('btnPrint');
+
+            alertBox.classList.add('hidden');
+            btnPrint.disabled = true;
+            btnPrint.innerText = "Đang xử lý tạo mã và xuất file Excel...";
+
+            const lotNumberPart = document.getElementById('inputLotNum').value.trim();
+            const fullLotNo = "LOT-" + lotNumberPart;
+
+            const payload = {
+                msp: document.getElementById('selectMSP').value,
+                nsx: document.getElementById('inputNSX').value,
+                lot_no: fullLotNo,
+                so_luong_tem: parseInt(document.getElementById('inputSoLuong').value)
+            };
+
+            try {
+                const res = await fetch('http://localhost:5000/api/production/generate-bags', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `In_Tem_${payload.nsx}_${fullLotNo}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+
+                    alertBox.className = "mb-4 p-3 rounded-lg text-sm text-center bg-green-100 text-green-700 font-medium";
+                    alertBox.innerText = `Thành công! Đã ghi nhận mã túi và tải file Tem Excel xuống máy.`;
+                    alertBox.classList.remove('hidden');
+                } else {
+                    const data = await res.json();
+                    alertBox.className = "mb-4 p-3 rounded-lg text-sm text-center bg-red-100 text-red-700 font-medium";
+                    alertBox.innerText = data.message || "Có lỗi xảy ra từ server.";
+                    alertBox.classList.remove('hidden');
+                }
+            } catch (err) {
+                alertBox.className = "mb-4 p-3 rounded-lg text-sm text-center bg-red-100 text-red-700 font-medium";
+                alertBox.innerText = "Lỗi kết nối tới Server Backend!";
+                alertBox.classList.remove('hidden');
+            } finally {
+                btnPrint.disabled = false;
+                btnPrint.innerText = "Khởi tạo & Ghi nhận Tem Túi";
+            }
+        }
+    </script>
+</body>
+</html>

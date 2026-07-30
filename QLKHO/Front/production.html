@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Bộ Phận Sản Xuất</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-md border border-slate-200">
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-8 border-b pb-4">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-800">TỔNG QUAN BỘ PHẬN SẢN XUẤT</h1>
+                <p class="text-slate-500 mt-1" id="userInfo">Đang tải...</p>
+            </div>
+            <button onclick="dangXuat()" class="px-5 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg font-medium transition">
+                Đăng xuất
+            </button>
+        </div>
+
+        <!-- Menu Các Trạm Làm Việc -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <!-- Nút vào Trạm In Tem -->
+            <a href="production/print_bags.html" 
+               class="group block p-6 bg-blue-50 border-2 border-blue-200 rounded-xl hover:bg-blue-600 hover:border-blue-600 transition duration-300">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 bg-blue-200 text-blue-700 rounded-lg group-hover:bg-blue-500 group-hover:text-white transition">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-blue-900 group-hover:text-white transition">TRẠM IN TEM TÚI</h2>
+                        <p class="text-sm text-blue-600 group-hover:text-blue-100 mt-1">Tạo mã định danh, in tem dán nhãn</p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Nút vào Trạm QC -->
+            <a href="production/qc_scan.html" 
+               class="group block p-6 bg-green-50 border-2 border-green-200 rounded-xl hover:bg-green-600 hover:border-green-600 transition duration-300">
+                <div class="flex items-center space-x-4">
+                    <div class="p-3 bg-green-200 text-green-700 rounded-lg group-hover:bg-green-500 group-hover:text-white transition">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-green-900 group-hover:text-white transition">TRẠM QUÉT QC</h2>
+                        <p class="text-sm text-green-600 group-hover:text-green-100 mt-1">Quét mã vạch xác nhận túi đạt chuẩn</p>
+                    </div>
+                </div>
+            </a>
+
+        </div>
+    </div>
+
+    <script>
+        // Kiểm tra quyền truy cập (Chỉ Sản Xuất mới được vào)
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || currentUser.bo_phan !== 'Sản Xuất') {
+            alert("Bạn không có quyền truy cập trang này!");
+            window.location.href = 'login.html';
+        } else {
+            document.getElementById('userInfo').innerHTML = `
+                Xin chào, <span class="font-bold text-blue-600">${currentUser.ho_ten}</span> 
+                | Chức vụ: <span class="font-bold">${currentUser.chuc_vu}</span>
+            `;
+        }
+
+        function dangXuat() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

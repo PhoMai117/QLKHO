@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trạm Quét Xuất Kho</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-md border border-slate-200">
+            <div>
+                <h1 class="text-xl font-bold text-slate-800">🚀 TRẠM XUẤT KHO ĐI ĐƠN</h1>
+                <p class="text-sm text-slate-500" id="userInfo">Đang tải...</p>
+            </div>
+            <button onclick="window.location.href='../warehouse.html'" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded transition">🏠 Về Menu</button>
+        </div>
+
+        <div id="step1" class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <h2 class="font-bold text-lg text-slate-800 mb-4 border-l-4 border-blue-500 pl-2">Chọn Đơn Hàng Cần Xuất</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 border-b">
+                            <th class="p-3">Mã Đơn Hàng</th>
+                            <th class="p-3">Đối Tác</th>
+                            <th class="p-3">Ngày Lên Đơn</th>
+                            <th class="p-3">Ngày Giao Hẹn</th>
+                            <th class="p-3 text-center">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="pendingOrdersTable">
+                        <tr><td colspan="5" class="p-4 text-center italic text-slate-500">Đang tải danh sách...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="step2" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div class="col-span-1 bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col items-center justify-center">
+                <h3 class="font-bold text-lg text-slate-700 mb-2">Đang xuất cho Đơn: <span id="currentOrderId" class="text-blue-600">DH-XXX</span></h3>
+                
+                <div id="alertBox" class="w-full hidden mb-4 p-3 rounded font-bold text-sm text-center border-2"></div>
+
+                <form onsubmit="xuLyQuet(event)" class="w-full mt-4">
+                    <label class="block text-sm font-bold text-slate-700 mb-2 text-center">QUÉT MÃ THÙNG XUẤT KHO</label>
+                    <input type="text" id="inputBoxId" placeholder="Tít mã thùng..." autocomplete="off" autofocus
+                        class="w-full px-4 py-4 text-xl border-4 border-blue-400 rounded-xl focus:ring-4 focus:ring-blue-200 focus:outline-none uppercase font-mono text-center shadow-inner">
+                </form>
+
+                <button onclick="huyChonDon()" class="mt-6 text-sm text-slate-500 hover:text-rose-500 underline font-semibold">Đổi đơn hàng khác</button>
+            </div>
+
+            <div class="col-span-2 bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col">
+                <div class="flex justify-between items-end mb-4 border-b pb-2">
+                    <h2 class="font-bold text-lg text-slate-800">Tiến độ gom hàng theo PO</h2>
+                    <button onclick="chotDonHang()" id="btnComplete" class="px-5 py-2 bg-green-500 hover:bg-green-600 text-white font-bold rounded shadow transition flex items-center gap-2">
+                        ✅ HOÀN THÀNH ĐI ĐƠN
+                    </button>
+                </div>
+                
+                <div class="overflow-y-auto max-h-80">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b">
+                                <th class="p-2">Số PO (Detail_ID)</th>
+                                <th class="p-2">Sản Phẩm</th>
+                                <th class="p-2 text-right">Cần (Pcs)</th>
+                                <th class="p-2 text-right">Đã Quét</th>
+                                <th class="p-2 w-1/4">Tiến độ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poProgressTable">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || { ho_ten: 'Demo', user_id: 'NTV-0006' };
+        document.getElementById('userInfo').innerText = `Nhân sự: ${currentUser.ho_ten}`;
+
+        let currentOrder = null;
+
+        document.addEventListener('DOMContentLoaded', loadPendingOrders);
+
+        document.body.addEventListener('click', (e) => {
+            if (currentOrder && e.target.tagName !== 'BUTTON') {
+                document.getElementById('inputBoxId').focus();
+            }
+        });
+
+        async function loadPendingOrders() {
+            try {
+                const res = await fetch('http://localhost:5000/api/warehouse/get-pending-orders');
+                const data = await res.json();
+                
+                const tbody = document.getElementById('pendingOrdersTable');
+                if (!data.success || data.orders.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-500">Kho không còn đơn hàng nào cần xuất!</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = data.orders.map(o => `
+                    <tr class="border-b hover:bg-blue-50 transition">
+                        <td class="p-3 font-bold text-blue-700">${o.Ma_DH}</td>
+                        <td class="p-3 font-semibold">${o.Ten_KH}</td>
+                        <td class="p-3 text-slate-600">${o.Ngay_tao.split(' ')[0]}</td>
+                        <td class="p-3 font-bold text-amber-600">${o.Ngay_giao}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="chonDonHang('${o.Ma_DH}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow transition">
+                                Tiến hành xuất ➔
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        function chonDonHang(ma_dh) {
+            currentOrder = ma_dh;
+            document.getElementById('step1').classList.add('hidden');
+            document.getElementById('step2').classList.remove('hidden');
+            document.getElementById('currentOrderId').innerText = ma_dh;
+            document.getElementById('inputBoxId').focus();
+            
+            anThongBao();
+            loadPOProgress();
+        }
+
+        function huyChonDon() {
+            currentOrder = null;
+            document.getElementById('step2').classList.add('hidden');
+            document.getElementById('step1').classList.remove('hidden');
+            loadPendingOrders();
+        }
+
+        async function loadPOProgress() {
+            if (!currentOrder) return;
+            try {
+                const res = await fetch(`http://localhost:5000/api/warehouse/order-export-status/${currentOrder}`);
+                const data = await res.json();
+
+                if (data.success) {
+                    const tbody = document.getElementById('poProgressTable');
+                    let allDone = true;
+
+                    tbody.innerHTML = data.details.map(po => {
+                        const isDone = po.Total_Scanned >= po.Total_Req;
+                        if (!isDone) allDone = false;
+                        
+                        let percent = Math.min((po.Total_Scanned / po.Total_Req) * 100, 100).toFixed(0);
+                        let barColor = isDone ? 'bg-green-500' : 'bg-blue-500';
+                        let rowClass = isDone ? 'bg-green-50/50 opacity-80' : 'bg-white';
+
+                        return `
+                            <tr class="border-b ${rowClass}">
+                                <td class="p-2 font-mono font-bold text-xs">${po.Detail_ID}</td>
+                                <td class="p-2 font-semibold text-slate-700">${po.Ten_SP} <span class="text-xs text-slate-400">(${po.MSP})</span></td>
+                                <td class="p-2 text-right font-bold text-slate-600">${po.Total_Req}</td>
+                                <td class="p-2 text-right font-bold ${isDone ? 'text-green-600' : 'text-blue-600'}">${po.Total_Scanned}</td>
+                                <td class="p-2">
+                                    <div class="w-full bg-slate-200 rounded-full h-2.5">
+                                        <div class="${barColor} h-2.5 rounded-full" style="width: ${percent}%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    if(allDone) {
+                        document.getElementById('btnComplete').classList.add('animate-pulse', 'ring-4', 'ring-green-300');
+                    } else {
+                        document.getElementById('btnComplete').classList.remove('animate-pulse', 'ring-4', 'ring-green-300');
+                    }
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        async function xuLyQuet(event) {
+            event.preventDefault();
+            const inputField = document.getElementById('inputBoxId');
+            const boxId = inputField.value.trim().toUpperCase();
+            
+            inputField.value = '';
+            inputField.focus();
+
+            if(!boxId) return;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/warehouse/scan-export', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ma_dh: currentOrder, box_id: boxId, user_id: currentUser.user_id })
+                });
+                
+                const data = await res.json();
+                
+                if (data.success) {
+                    hienThiThanhCong(data.message);
+                    loadPOProgress(); 
+                } else {
+                    hienThiLoi(data.message);
+                }
+            } catch (err) {
+                hienThiLoi("Lỗi kết nối Backend!");
+            }
+        }
+
+        async function chotDonHang() {
+            if(!confirm("Bạn có chắc chắn muốn chốt hoàn thành Đơn Hàng này?")) return;
+
+            try {
+                const res = await fetch('http://localhost:5000/api/warehouse/complete-order', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ma_dh: currentOrder })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert("🎉 XUẤT KHO THÀNH CÔNG! Đơn hàng đã được đánh dấu Đã Giao.");
+                    huyChonDon(); 
+                } else {
+                    alert("Lỗi: " + data.message);
+                }
+            } catch (err) { alert("Lỗi hệ thống!"); }
+        }
+
+        function hienThiLoi(msg) {
+            const ab = document.getElementById('alertBox');
+            ab.className = "w-full mb-4 p-3 rounded font-bold text-sm text-center border-2 bg-red-100 text-red-700 border-red-500 block";
+            ab.innerText = "❌ " + msg;
+        }
+
+        function hienThiThanhCong(msg) {
+            const ab = document.getElementById('alertBox');
+            ab.className = "w-full mb-4 p-3 rounded font-bold text-sm text-center border-2 bg-green-100 text-green-700 border-green-500 block";
+            ab.innerText = "✔️ " + msg;
+            setTimeout(anThongBao, 2000);
+        }
+
+        function anThongBao() {
+            document.getElementById('alertBox').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>

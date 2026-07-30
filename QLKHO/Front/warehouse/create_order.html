@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tạo Đơn Hàng Xuất Kho</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-5xl mx-auto bg-white p-8 rounded-sm shadow-lg border border-slate-300">
+        
+        <div class="flex justify-between items-center mb-6 border-b-2 border-slate-800 pb-4">
+            <h1 class="text-2xl font-bold text-slate-800 uppercase tracking-wide">Phiếu Yêu Cầu Xuất Kho</h1>
+            <div class="space-x-2">
+                <button onclick="quayLai()" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-semibold rounded transition">Quay lại</button>
+                <button onclick="luuDonHang()" id="btnSave" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded shadow transition">💾 Lưu Đơn Hàng</button>
+            </div>
+        </div>
+
+        <div id="alertBox" class="hidden mb-4 p-3 rounded text-center font-bold text-sm border-2"></div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-4 mb-8">
+            <div class="space-y-4">
+                <div class="flex items-center">
+                    <label class="w-32 font-bold text-sm text-slate-700">Mã ĐH:</label>
+                    <div class="flex-1 flex gap-2">
+                        <input type="text" id="orderId" placeholder="VD: DH-2607..." onchange="timDonHang()" class="flex-1 border border-slate-300 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-400 outline-none font-mono uppercase">
+                        <button onclick="timDonHang()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-bold rounded shadow-sm border border-slate-300 transition">🔍 Tìm</button>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <label class="w-32 font-bold text-sm text-slate-700">Ngày tạo đơn:</label>
+                    <input type="date" id="createDate" class="flex-1 border border-slate-300 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-400 outline-none">
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <div class="flex items-center">
+                    <label class="w-32 font-bold text-sm text-slate-700">Tên Đối tác:</label>
+                    <select id="customerSelect" class="flex-1 border border-slate-300 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-400 outline-none">
+                        <option value="">-- Chọn đối tác --</option>
+                    </select>
+                </div>
+                <div class="flex items-center">
+                    <label class="w-32 font-bold text-sm text-slate-700">Ng. tạo ĐH:</label>
+                    <input type="text" id="creatorName" placeholder="Nhập tên người tạo..." class="flex-1 border border-slate-300 rounded px-3 py-1.5 focus:ring-2 focus:ring-blue-400 outline-none">
+                </div>
+            </div>
+        </div>
+
+        <div class="mb-8">
+            <div class="flex justify-between items-end mb-2">
+                <h2 class="font-bold text-lg text-slate-800 border-l-4 border-blue-600 pl-2">Danh sách PO Cần Xuất</h2>
+                <button onclick="themDongPO()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded shadow transition flex items-center gap-1">
+                    ➕ Thêm PO
+                </button>
+            </div>
+            
+            <table class="w-full text-left border-collapse border border-slate-300">
+                <thead>
+                    <tr class="bg-slate-100 border-b border-slate-300 text-sm text-slate-700">
+                        <th class="p-2 border-r border-slate-300 text-center w-12">STT</th>
+                        <th class="p-2 border-r border-slate-300 w-1/4">Số PO</th>
+                        <th class="p-2 border-r border-slate-300 w-1/3">Sản phẩm (MSP)</th>
+                        <th class="p-2 border-r border-slate-300 w-32">SL (Pcs)</th>
+                        <th class="p-2 border-r border-slate-300 w-32 text-center">Dự kiến thùng</th>
+                        <th class="p-2 text-center w-12">Xóa</th>
+                    </tr>
+                </thead>
+                <tbody id="poTableBody">
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex items-center border-t-2 border-slate-100 pt-6">
+            <label class="w-40 font-bold text-base text-slate-800">Ngày dự kiến giao:</label>
+            <input type="date" id="expectedDate" class="w-48 border-2 border-amber-400 rounded px-3 py-2 focus:ring-2 focus:ring-amber-200 outline-none font-bold text-slate-700 shadow-sm">
+        </div>
+
+    </div>
+
+    <script>
+        const currentUser = JSON.parse(localStorage.getItem('currentUser')) || { ho_ten: 'Demo User', user_id: 'NTV-0006' };
+        
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('createDate').value = today;
+        document.getElementById('creatorName').value = currentUser.ho_ten;
+
+        let productsList = [];
+        let customersList = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await taiDuLieuDanhMuc();
+            themDongPO(); 
+        });
+
+        function quayLai() {
+            if(confirm("Bạn có chắc muốn thoát? Các thay đổi chưa lưu sẽ bị mất.")) {
+                window.location.href = '../warehouse.html'; 
+            }
+        }
+
+        async function taiDuLieuDanhMuc() {
+            try {
+                const resProd = await fetch('http://localhost:5000/api/production/get-products');
+                if (resProd.ok) {
+                    const data = await resProd.json();
+                    productsList = data.products;
+                }
+
+                const resCust = await fetch('http://localhost:5000/api/warehouse/get-customers');
+                if (resCust.ok) {
+                    const dataCust = await resCust.json();
+                    customersList = dataCust.customers;
+                }
+
+                const customerSelect = document.getElementById('customerSelect');
+                customersList.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.Ma_KH;
+                    opt.textContent = c.Ten_KH;
+                    customerSelect.appendChild(opt);
+                });
+
+            } catch (error) {
+                console.error("Lỗi tải danh mục:", error);
+            }
+        }
+
+        function taoProductOptions() {
+            let options = `<option value="">-- Chọn MSP --</option>`;
+            productsList.forEach(p => {
+                const pcsPerBox = (p.Quy_cach_Tui || 125) * (p.Quy_cach_Thung || 4);
+                options += `<option value="${p.MSP}" data-pcsperbox="${pcsPerBox}">${p.MSP} - ${p.Ten_SP}</option>`;
+            });
+            return options;
+        }
+
+        function themDongPO() {
+            const tbody = document.getElementById('poTableBody');
+            const rowCount = tbody.children.length + 1;
+            
+            const tr = document.createElement('tr');
+            tr.className = "po-row border-b border-slate-200 hover:bg-slate-50 transition";
+            
+            tr.innerHTML = `
+                <td class="p-2 border-r border-slate-300 text-center font-semibold text-slate-500 row-index">${rowCount}</td>
+                <td class="p-2 border-r border-slate-300">
+                    <input type="text" class="po-input w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500 uppercase font-mono" placeholder="PO-...">
+                </td>
+                <td class="p-2 border-r border-slate-300">
+                    <select class="msp-select w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500" onchange="tinhSoThung(this)">
+                        ${taoProductOptions()}
+                    </select>
+                </td>
+                <td class="p-2 border-r border-slate-300">
+                    <input type="number" min="1" class="qty-input w-full border border-slate-300 rounded px-2 py-1 outline-none focus:border-blue-500 text-right" placeholder="0" oninput="tinhSoThung(this)">
+                </td>
+                <td class="p-2 border-r border-slate-300 text-center">
+                    <span class="box-calc text-slate-500 font-bold bg-slate-100 px-2 py-1 rounded">0 thg</span>
+                </td>
+                <td class="p-2 text-center">
+                    <button onclick="xoaDongPO(this)" class="text-rose-500 hover:text-rose-700 font-bold px-2 py-1 bg-rose-50 rounded" title="Xóa dòng này">✕</button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+            capNhatSTT();
+        }
+
+        function xoaDongPO(btn) {
+            const tbody = document.getElementById('poTableBody');
+            if (tbody.children.length === 1) {
+                alert("Đơn hàng phải có ít nhất 1 dòng PO!");
+                return;
+            }
+            btn.closest('tr').remove();
+            capNhatSTT();
+        }
+
+        function capNhatSTT() {
+            const rows = document.querySelectorAll('.po-row');
+            rows.forEach((row, index) => {
+                row.querySelector('.row-index').textContent = index + 1;
+            });
+        }
+
+        function tinhSoThung(element) {
+            const row = element.closest('tr');
+            const select = row.querySelector('.msp-select');
+            const inputQty = row.querySelector('.qty-input');
+            const boxCalc = row.querySelector('.box-calc');
+
+            const pcsStr = inputQty.value;
+            if (!pcsStr || !select.value) {
+                boxCalc.textContent = "0 thg";
+                return;
+            }
+
+            const pcs = parseInt(pcsStr);
+            const selectedOption = select.options[select.selectedIndex];
+            const pcsPerBox = parseInt(selectedOption.dataset.pcsperbox);
+
+            if (pcsPerBox) {
+                const boxes = (pcs / pcsPerBox).toFixed(1); 
+                boxCalc.textContent = `${boxes} thg`;
+                boxCalc.className = "box-calc text-blue-700 font-bold bg-blue-50 px-2 py-1 rounded";
+            }
+        }
+
+        async function timDonHang() {
+            const orderId = document.getElementById('orderId').value.trim().toUpperCase();
+            if (!orderId) return;
+
+            try {
+                const res = await fetch(`http://localhost:5000/api/warehouse/get-order/${orderId}`);
+                const data = await res.json();
+                
+                const alertBox = document.getElementById('alertBox');
+                const btnSave = document.getElementById('btnSave');
+
+                if (data.success) {
+                    // --- NẾU LÀ ĐƠN CŨ: Tải dữ liệu lên form để SỬA ---
+                    const order = data.order;
+                    const details = data.details;
+
+                    document.getElementById('customerSelect').value = order.Ma_KH;
+                    document.getElementById('expectedDate').value = order.Ngay_giao || '';
+                    document.getElementById('createDate').value = order.Ngay_tao ? order.Ngay_tao.split(' ')[0] : today;
+                    document.getElementById('creatorName').value = order.User_ID;
+                    
+                    if (order.Trang_thai_DH !== 'Chờ xuất kho') {
+                        alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-yellow-100 text-yellow-800 border-yellow-500 block";
+                        alertBox.textContent = `⚠️ Đơn hàng này đang ở trạng thái "${order.Trang_thai_DH}", KHÔNG THỂ CHỈNH SỬA!`;
+                        btnSave.disabled = true;
+                        btnSave.classList.add('opacity-50', 'cursor-not-allowed');
+                    } else {
+                        alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-blue-100 text-blue-700 border-blue-400 block";
+                        alertBox.textContent = "✔️ Đã tải dữ liệu đơn hàng cũ. Bạn có thể chỉnh sửa và Lưu lại!";
+                        btnSave.disabled = false;
+                        btnSave.classList.remove('opacity-50', 'cursor-not-allowed');
+                    }
+
+                    const tbody = document.getElementById('poTableBody');
+                    tbody.innerHTML = '';
+
+                    details.forEach((po) => {
+                        themDongPO(); 
+                        const lastRow = tbody.lastElementChild;
+                        
+                        lastRow.querySelector('.po-input').value = po.Detail_ID;
+                        lastRow.querySelector('.msp-select').value = po.MSP;
+                        lastRow.querySelector('.qty-input').value = po.So_luong;
+                        
+                        tinhSoThung(lastRow.querySelector('.qty-input'));
+                    });
+                } else {
+                    // --- NẾU LÀ ĐƠN MỚI: XÓA SẠCH DỮ LIỆU CŨ ĐỂ NHẬP MỚI TỪ ĐẦU ---
+                    document.getElementById('customerSelect').value = "";
+                    document.getElementById('expectedDate').value = "";
+                    document.getElementById('createDate').value = today;
+                    document.getElementById('creatorName').value = currentUser.ho_ten;
+
+                    // Xóa bảng PO cũ và tạo sẵn 1 dòng trắng sạch sẽ
+                    const tbody = document.getElementById('poTableBody');
+                    tbody.innerHTML = '';
+                    themDongPO(); 
+
+                    alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-slate-100 text-slate-600 border-slate-300 block";
+                    alertBox.textContent = "📝 Mã đơn hàng mới. Giao diện đã được làm sạch để bạn nhập mới!";
+                    
+                    btnSave.disabled = false;
+                    btnSave.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            } catch (error) {
+                console.error("Lỗi tìm đơn:", error);
+            }
+        }
+        function luuDonHang() {
+            const orderId = document.getElementById('orderId').value.trim();
+            const customerId = document.getElementById('customerSelect').value;
+            const expectedDate = document.getElementById('expectedDate').value;
+            
+            const alertBox = document.getElementById('alertBox');
+
+            if (!orderId || !customerId || !expectedDate) {
+                alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-red-100 text-red-700 border-red-500";
+                alertBox.textContent = "LỖI: Vui lòng nhập đầy đủ Mã ĐH, Đối tác và Ngày dự kiến giao!";
+                alertBox.classList.remove('hidden');
+                return;
+            }
+
+            const poRows = document.querySelectorAll('.po-row');
+            const orderDetails = [];
+            let hasError = false;
+
+            poRows.forEach(row => {
+                const poId = row.querySelector('.po-input').value.trim();
+                const msp = row.querySelector('.msp-select').value;
+                const qty = row.querySelector('.qty-input').value;
+
+                if (!poId || !msp || !qty || parseInt(qty) <= 0) {
+                    hasError = true;
+                } else {
+                    orderDetails.push({ ma_po: poId, msp: msp, so_luong_pcs: parseInt(qty) });
+                }
+            });
+
+            if (hasError || orderDetails.length === 0) {
+                alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-red-100 text-red-700 border-red-500";
+                alertBox.textContent = "LỖI: Thông tin tại các dòng PO bị trống hoặc số lượng không hợp lệ!";
+                alertBox.classList.remove('hidden');
+                return;
+            }
+
+            const payload = {
+                ma_dh: orderId,
+                ma_kh: customerId,
+                ngay_du_kien: expectedDate,
+                user_id: document.getElementById('creatorName').value.trim(), 
+                ngay_tao: document.getElementById('createDate').value,   
+                chi_tiet_po: orderDetails
+            };
+
+            fetch('http://localhost:5000/api/warehouse/save-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-green-100 text-green-700 border-green-500";
+                    alertBox.textContent = "✔️ THÀNH CÔNG: Đã lưu đơn hàng!";
+                    alertBox.classList.remove('hidden');
+                    
+                    setTimeout(() => window.location.href = '../warehouse.html', 1500);
+                } else {
+                    alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-red-100 text-red-700 border-red-500";
+                    alertBox.textContent = "❌ " + data.message;
+                    alertBox.classList.remove('hidden');
+                }
+            })
+            .catch(err => {
+                console.error("Fetch Error:", err);
+                alertBox.className = "mb-4 p-3 rounded text-center font-bold text-sm border-2 bg-red-100 text-red-700 border-red-500";
+                alertBox.textContent = "❌ LỖI: Không thể kết nối tới Server Backend!";
+                alertBox.classList.remove('hidden');
+            });
+        }
+    // Tự động kiểm tra nếu có tham số ?dh=... trên URL thì tự động load đơn để sửa
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const dhParam = urlParams.get('dh');
+            if (dhParam) {
+                document.getElementById('orderId').value = dhParam;
+                timDonHang();
+            }
+        });
+    </script>
+</body>
+</html>

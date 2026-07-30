@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trạm Đóng Thùng - Nhập Kho</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 min-h-screen p-6">
+
+    <div class="max-w-6xl mx-auto space-y-6">
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200 flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-center mb-4 border-b pb-2">
+                        <h1 class="text-xl font-bold text-slate-800">TRẠM QUÉT ĐÓNG THÙNG</h1>
+                        <button onclick="quayLai()" class="text-sm text-amber-600 font-semibold hover:underline">Quay lại Menu</button>
+                    </div>
+                    
+                    <p class="text-sm text-slate-500 mb-4" id="userInfo">Đang tải thông tin...</p>
+
+                    <div id="alertBox" class="hidden mb-4 p-3 rounded-lg text-center font-bold text-sm border-2"></div>
+                </div>
+
+                <form id="scanForm" onsubmit="xuLyQuet(event)" class="mt-4">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">QUÉT MÃ TÚI ĐỂ GOM THÙNG:</label>
+                    <input type="text" id="inputBagId" required placeholder="Tít mã túi..." autofocus autocomplete="off"
+                        class="w-full px-4 py-4 text-xl border-2 border-amber-400 rounded-lg focus:ring-4 focus:ring-amber-300 focus:outline-none uppercase font-mono text-center shadow-inner">
+                </form>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                <div class="flex justify-between items-end mb-4 border-b pb-2">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Thùng Đang Đóng</h2>
+                        <p class="text-xs text-slate-500 mt-1" id="boxStatus">Hãy quét túi đầu tiên để xác định Sản phẩm</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-bold text-slate-700">Tiến độ: <span id="progressText" class="text-amber-600 text-xl">0/0</span></span>
+                    </div>
+                </div>
+                
+                <div class="overflow-y-auto h-52 mb-4 bg-slate-50 rounded border p-2">
+                    <ul id="bagList" class="space-y-2">
+                    </ul>
+                </div>
+                
+                <button id="btnForcePack" onclick="dongThung(true)" disabled
+                    class="w-full bg-slate-400 text-white font-medium py-3 rounded-lg transition duration-200 shadow-md flex justify-center items-center">
+                    <span>Chốt Thùng Lẻ (Chưa đủ quy cách)</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 border-b pb-3 gap-3">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <span>📦 Thùng Vừa Đóng Trong Ca</span>
+                        <span id="packedCount" class="text-xs bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">0 thùng</span>
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">Tích chọn các thùng để in gộp thành 1 file Excel duy nhất hoặc xóa thùng đã in xong</p>
+                </div>
+                
+                <!-- CÁC NÚT THAO TÁC HÀNG LOẠT -->
+                <div class="flex gap-2">
+                    <button onclick="inCacThungDaChon()" 
+                        class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded shadow transition flex items-center gap-1 cursor-pointer">
+                        🖨️ In Các Thùng Đã Chọn
+                    </button>
+                    <button onclick="xoaCacThungDaChon()" 
+                        class="px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold rounded shadow transition flex items-center gap-1 cursor-pointer">
+                        🗑️ Xóa Đã Chọn
+                    </button>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm border-collapse">
+                    <thead>
+                        <tr class="bg-slate-100 text-slate-600 border-b">
+                            <th class="p-3 text-center w-10">
+                                <input type="checkbox" id="selectAll" onchange="chonTatCa(this)" class="w-4 h-4 rounded text-blue-600 cursor-pointer">
+                            </th>
+                            <th class="p-3">Mã Thùng</th>
+                            <th class="p-3">Sản Phẩm</th>
+                            <th class="p-3">Số Túi</th>
+                            <th class="p-3">Thời Gian Đóng</th>
+                            <th class="p-3 text-center">Thao Tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="packedBoxesTable">
+                        <tr id="emptyRow">
+                            <td colspan="6" class="p-4 text-center text-slate-400 italic">Chưa có thùng nào được đóng trong phiên làm việc này.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser || currentUser.bo_phan !== 'Kho') {
+            alert("Bạn không có quyền truy cập trang này!");
+            window.location.href = '../login.html';
+        } else {
+            document.getElementById('userInfo').innerText = `Thủ kho: ${currentUser.ho_ten} (${currentUser.user_id || 'NTV-0006'})`;
+        }
+
+        function quayLai() {
+            window.location.href = '../warehouse.html';
+        }
+
+        document.body.addEventListener('click', (e) => {
+            if (!['INPUT', 'BUTTON', 'A', 'SELECT', 'LABEL'].includes(e.target.tagName)) {
+                document.getElementById('inputBagId').focus();
+            }
+        });
+
+        let currentMSP = null;
+        let currentTargetQty = 0;
+        let currentProductName = '';
+        let danhSachTui = [];
+        let danhSachThungDaDong = JSON.parse(localStorage.getItem('danhSachThungDaDong')) || [];
+
+        capNhatBangThungDaDong();
+
+        async function xuLyQuet(event) {
+            event.preventDefault();
+            const inputField = document.getElementById('inputBagId');
+            const bagId = inputField.value.trim().toUpperCase();
+            
+            inputField.value = '';
+            inputField.focus();
+
+            if (danhSachTui.includes(bagId)) {
+                hienThiLoi(`Túi ${bagId} vừa được quét rồi!`);
+                return;
+            }
+
+            try {
+                const res = await fetch('http://localhost:5000/api/warehouse/verify-bag', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bag_id: bagId })
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                    hienThiLoi(data.message);
+                    return;
+                }
+
+                const bag = data.bag;
+
+                if (danhSachTui.length === 0) {
+                    currentMSP = bag.msp;
+                    currentProductName = bag.ten_sp;
+                    currentTargetQty = bag.quy_cach_thung;
+                    document.getElementById('boxStatus').innerText = `Đang đóng: ${bag.ten_sp} (${currentMSP}) - Quy cách: ${currentTargetQty} túi/thùng`;
+                    
+                    const btnForce = document.getElementById('btnForcePack');
+                    btnForce.disabled = false;
+                    btnForce.className = "w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-3 rounded-lg transition duration-200 shadow-md flex justify-center items-center cursor-pointer";
+                } else {
+                    if (bag.msp !== currentMSP) {
+                        hienThiLoi(`SAI MÃ HÀNG! Yêu cầu: ${currentMSP}, nhưng túi quét là ${bag.msp}`);
+                        return;
+                    }
+                }
+
+                danhSachTui.push(bagId);
+                hienThiThanhCong(`Quét thành công túi ${bagId}`);
+                capNhatGiaoDien(bag);
+
+                if (danhSachTui.length === currentTargetQty) {
+                    await dongThung(false);
+                }
+
+            } catch (err) {
+                hienThiLoi("Lỗi kết nối tới Server Backend!");
+            }
+        }
+
+        function hienThiLoi(msg) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.className = "mb-4 p-3 rounded-lg text-center font-bold text-sm border-2 bg-red-100 text-red-700 border-red-500";
+            alertBox.innerText = `[LỖI] ${msg}`;
+            alertBox.classList.remove('hidden');
+        }
+
+        function hienThiThanhCong(msg) {
+            const alertBox = document.getElementById('alertBox');
+            alertBox.className = "mb-4 p-3 rounded-lg text-center font-bold text-sm border-2 bg-green-100 text-green-700 border-green-500";
+            alertBox.innerText = `[OK] ${msg}`;
+            alertBox.classList.remove('hidden');
+        }
+
+        function capNhatGiaoDien(bag) {
+            document.getElementById('progressText').innerText = `${danhSachTui.length}/${currentTargetQty}`;
+            
+            const list = document.getElementById('bagList');
+            const li = document.createElement('li');
+            li.className = "p-2 bg-white border border-slate-200 rounded flex justify-between text-xs";
+            li.innerHTML = `<span class="font-bold font-mono">${bag.bag_id}</span><span class="text-slate-500">Lot: ${bag.lot_no}</span>`;
+            list.appendChild(li);
+        }
+
+        async function dongThung(isForce = false) {
+            if (danhSachTui.length === 0) return;
+            
+            if (isForce) {
+                if (!confirm(`Bạn có chắc muốn đóng thùng lẻ với số lượng chưa đủ (${danhSachTui.length}/${currentTargetQty})?`)) {
+                    document.getElementById('inputBagId').focus();
+                    return;
+                }
+            }
+
+            hienThiThanhCong("Đang xử lý chốt thùng và ghi nhận tồn kho...");
+            document.getElementById('inputBagId').disabled = true;
+
+            try {
+                const userId = currentUser.user_id || 'NTV-0006';
+                const qtyBagsPacked = danhSachTui.length;
+                const spNamePacked = currentProductName || currentMSP;
+
+                const res = await fetch('http://localhost:5000/api/warehouse/pack-box', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ bags: danhSachTui, user_id: userId })
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.success) {
+                    const createdBoxId = data.box_id;
+                    const nowStr = new Date().toLocaleTimeString('vi-VN') + ' ' + new Date().toLocaleDateString('vi-VN');
+
+                    danhSachThungDaDong.unshift({
+                        box_id: createdBoxId,
+                        sp: spNamePacked,
+                        qty: qtyBagsPacked,
+                        time: nowStr
+                    });
+
+                    localStorage.setItem('danhSachThungDaDong', JSON.stringify(danhSachThungDaDong));
+                    capNhatBangThungDaDong();
+
+                    hienThiThanhCong(`THÀNH CÔNG! Đã đóng thùng ${createdBoxId}.`);
+
+                    danhSachTui = [];
+                    currentMSP = null;
+                    currentProductName = '';
+                    currentTargetQty = 0;
+                    document.getElementById('bagList').innerHTML = '';
+                    document.getElementById('progressText').innerText = `0/0`;
+                    document.getElementById('boxStatus').innerText = `Hãy quét túi đầu tiên để xác định Sản phẩm`;
+                    
+                    const btnForce = document.getElementById('btnForcePack');
+                    btnForce.disabled = true;
+                    btnForce.className = "w-full bg-slate-400 text-white font-medium py-3 rounded-lg transition duration-200 shadow-md flex justify-center items-center";
+                } else {
+                    hienThiLoi(data.message);
+                }
+            } catch (err) {
+                hienThiLoi("Lỗi kết nối khi đóng thùng!");
+            } finally {
+                document.getElementById('inputBagId').disabled = false;
+                document.getElementById('inputBagId').focus();
+            }
+        }
+
+        // TẢI 1 TEM THÙNG LẺ
+        async function taiTemThung(boxId) {
+            guiYeuCauIn([boxId]);
+        }
+
+        // TẢI GỘP NHIỀU TEM THÙNG ĐÃ CHỌN
+        async function inCacThungDaChon() {
+            const checkboxes = document.querySelectorAll('.box-checkbox:checked');
+            const selectedBoxIds = Array.from(checkboxes).map(cb => cb.value);
+
+            if (selectedBoxIds.length === 0) {
+                alert("Vui lòng tích chọn ít nhất 1 thùng để in!");
+                return;
+            }
+
+            guiYeuCauIn(selectedBoxIds);
+        }
+
+        // HÀM CHUNG GỬI YÊU CẦU IN VỀ BACKEND
+        async function guiYeuCauIn(boxIds) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/warehouse/print-box-labels`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ box_ids: boxIds })
+                });
+
+                if (res.ok) {
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = boxIds.length === 1 ? `Tem_Thung_${boxIds[0]}.xlsx` : `In_Gop_Tem_Thung_${boxIds.length}_Thung.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                } else {
+                    const data = await res.json();
+                    alert("Lỗi tạo tem: " + (data.message || "Không thể tạo tem thùng!"));
+                }
+            } catch (err) {
+                alert("Lỗi kết nối tới Server Backend!");
+            }
+        }
+
+        // XÓA 1 THÙNG KHỎI DANH SÁCH
+        function xoaThung(boxId) {
+            if (confirm(`Bạn có chắc muốn xóa thùng ${boxId} khỏi danh sách hiển thị?`)) {
+                danhSachThungDaDong = danhSachThungDaDong.filter(item => item.box_id !== boxId);
+                localStorage.setItem('danhSachThungDaDong', JSON.stringify(danhSachThungDaDong));
+                capNhatBangThungDaDong();
+            }
+        }
+
+        // XÓA CÁC THÙNG ĐÃ TÍCH CHỌN
+        function xoaCacThungDaChon() {
+            const checkboxes = document.querySelectorAll('.box-checkbox:checked');
+            const selectedBoxIds = Array.from(checkboxes).map(cb => cb.value);
+
+            if (selectedBoxIds.length === 0) {
+                alert("Vui lòng tích chọn ít nhất 1 thùng để xóa!");
+                return;
+            }
+
+            if (confirm(`Bạn có chắc muốn xóa ${selectedBoxIds.length} thùng đã chọn khỏi danh sách hiển thị?`)) {
+                danhSachThungDaDong = danhSachThungDaDong.filter(item => !selectedBoxIds.includes(item.box_id));
+                localStorage.setItem('danhSachThungDaDong', JSON.stringify(danhSachThungDaDong));
+                capNhatBangThungDaDong();
+            }
+        }
+
+        // TÍCH CHỌN TẤT CẢ
+        function chonTatCa(master) {
+            const checkboxes = document.querySelectorAll('.box-checkbox');
+            checkboxes.forEach(cb => cb.checked = master.checked);
+        }
+
+        // CẬP NHẬT BẢNG HIỂN THỊ
+        function capNhatBangThungDaDong() {
+            const tbody = document.getElementById('packedBoxesTable');
+            document.getElementById('packedCount').innerText = `${danhSachThungDaDong.length} thùng`;
+            document.getElementById('selectAll').checked = false;
+
+            if (danhSachThungDaDong.length === 0) {
+                tbody.innerHTML = `
+                    <tr id="emptyRow">
+                        <td colspan="6" class="p-4 text-center text-slate-400 italic">Chưa có thùng nào được đóng trong phiên làm việc này.</td>
+                    </tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            danhSachThungDaDong.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b hover:bg-amber-50/50 transition";
+                tr.innerHTML = `
+                    <td class="p-3 text-center">
+                        <input type="checkbox" value="${item.box_id}" class="box-checkbox w-4 h-4 rounded text-blue-600 cursor-pointer">
+                    </td>
+                    <td class="p-3 font-bold font-mono text-amber-700">${item.box_id}</td>
+                    <td class="p-3 font-medium text-slate-800">${item.sp}</td>
+                    <td class="p-3"><span class="bg-slate-100 font-bold px-2 py-1 rounded text-slate-700">${item.qty} túi</span></td>
+                    <td class="p-3 text-slate-500 text-xs">${item.time}</td>
+                    <td class="p-3 text-center space-x-1">
+                        <button onclick="taiTemThung('${item.box_id}')"
+                           class="inline-flex items-center gap-1 px-2.5 py-1.2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded shadow transition cursor-pointer">
+                            🖨️ In
+                        </button>
+                        <button onclick="xoaThung('${item.box_id}')"
+                           class="inline-flex items-center gap-1 px-2.5 py-1.2 bg-slate-200 hover:bg-rose-100 text-slate-600 hover:text-rose-600 text-xs font-semibold rounded transition cursor-pointer">
+                            🗑️ Xóa
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
